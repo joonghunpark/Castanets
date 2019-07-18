@@ -1107,7 +1107,7 @@ void NodeController::OnIntroduce(const ports::NodeName& from_node,
                                  const ports::NodeName& name,
                                  PlatformHandle channel_handle) {
   DCHECK(io_task_runner_->RunsTasksInCurrentSequence());
-
+#if !defined(CASTANETS)
   if (!channel_handle.is_valid()) {
     node_->LostConnectionToNode(name);
 
@@ -1116,25 +1116,35 @@ void NodeController::OnIntroduce(const ports::NodeName& from_node,
     pending_peer_messages_.erase(name);
     return;
   }
+#endif
 
 #if defined(CASTANETS)
+  NamedPlatformChannel::ServerName shmem_name = ".org.castanets.Castanets.shmem.network";
   std::string process_type_str =
       base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII("type");
   if (process_type_str == "utility") {
+    NamedPlatformChannel::Options options;
+    options.server_name = shmem_name;
+    mojo::NamedPlatformChannel named_channel(options);
     scoped_refptr<NodeChannel> channel = NodeChannel::Create(
-        this,
-        ConnectionParams(mojo::PlatformChannelServerEndpoint(
-            mojo::CreateTCPServerHandle(mojo::kCastanetsNonBrokerPort))),
-        io_task_runner_, ProcessErrorCallback());
+      this,
+      ConnectionParams(named_channel.TakeServerEndpoint()),
+      io_task_runner_, ProcessErrorCallback());
     DVLOG(1) << "Adding new peer " << name << " via broker introduction.";
     AddPeer(name, channel, true /* start_channel */);
   }
   else {
-    scoped_refptr<NodeChannel> channel = NodeChannel::Create(
-        this,
-        ConnectionParams(PlatformChannelEndpoint(
-            mojo::CreateTCPClientHandle(mojo::kCastanetsNonBrokerPort))),
-        io_task_runner_, ProcessErrorCallback());
+    PlatformChannelEndpoint channel_endpoint;
+    for (int nsec = 1; nsec <= 128; nsec <<= 1) {
+      channel_endpoint = NamedPlatformChannel::ConnectToServer(shmem_name);
+      if (channel_endpoint.is_valid())
+        break;
+      if (nsec <= 128 / 2)
+        sleep(nsec);
+    }
+    scoped_refptr<NodeChannel> channel =
+        NodeChannel::Create(this, ConnectionParams(std::move(channel_endpoint)),
+                            io_task_runner_, ProcessErrorCallback());
     DVLOG(1) << "Adding new peer " << name << " via broker introduction.";
     AddPeer(name, channel, true /* start_channel */);
   }

@@ -13,6 +13,7 @@
 #include "base/task_scheduler/single_thread_task_runner_thread_mode.h"
 #include "base/task_scheduler/task_traits.h"
 #include "content/browser/child_process_launcher.h"
+#include "content/browser/renderer_host/input/timeout_monitor.h"
 #include "content/public/browser/child_process_launcher_utils.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/sandboxed_process_launcher_delegate.h"
@@ -76,11 +77,27 @@ ChildProcessLauncherHelper::ChildProcessLauncherHelper(
       command_line_(std::move(command_line)),
       delegate_(std::move(delegate)),
       child_process_launcher_(child_process_launcher),
+      timeout_on_process_launch_(false),
       terminate_on_shutdown_(terminate_on_shutdown),
       mojo_invitation_(std::move(mojo_invitation)),
-      process_error_callback_(process_error_callback) {}
+      process_error_callback_(process_error_callback) {
+        relaunch_renderer_process_monitor_timeout_.reset(new TimeoutMonitor(base::Bind(
+    &ChildProcessLauncherHelper::OnCastanetsRendererTimeout, base::Unretained(this))));
+          relaunch_renderer_process_monitor_timeout_->Start(base::TimeDelta::FromSeconds(
+        10));
+      }
 
 ChildProcessLauncherHelper::~ChildProcessLauncherHelper() = default;
+
+void ChildProcessLauncherHelper::OnCastanetsRendererTimeout() {
+  timeout_on_process_launch_ = true;
+  success_or_timeout_event_.Signal();
+}
+
+void ChildProcessLauncherHelper::OnTcpConnectionLaunched() {
+  relaunch_renderer_process_monitor_timeout_->Stop();
+  success_or_timeout_event_.Signal();
+}
 
 void ChildProcessLauncherHelper::StartLaunchOnClientThread() {
   DCHECK_CURRENTLY_ON(client_thread_id_);
@@ -98,6 +115,7 @@ void ChildProcessLauncherHelper::StartLaunchOnClientThread() {
 }
 
 void ChildProcessLauncherHelper::LaunchOnLauncherThread() {
+  LOG(INFO) << __FUNCTION__ << " start!!!!";
   DCHECK(CurrentlyOnProcessLauncherTaskRunner());
 
   begin_launch_time_ = base::TimeTicks::Now();
@@ -120,6 +138,7 @@ void ChildProcessLauncherHelper::LaunchOnLauncherThread() {
   if (is_synchronous_launch) {
     PostLaunchOnLauncherThread(std::move(process), launch_result);
   }
+  LOG(INFO) << __FUNCTION__ << " end!!!!";
 }
 
 void ChildProcessLauncherHelper::PostLaunchOnLauncherThread(
@@ -139,11 +158,15 @@ void ChildProcessLauncherHelper::PostLaunchOnLauncherThread(
   if (process.process.IsValid()) {
     // Set up Mojo IPC to the new process.
     if (mojo_channel_) {
+      LOG(INFO) << __FUNCTION__ << "1";
+      LOG(INFO) << __FUNCTION__ << " mojo_channel_->local_endpoint().is_valid(): " << mojo_channel_->local_endpoint().is_valid();
       DCHECK(mojo_channel_->local_endpoint().is_valid());
+      LOG(INFO) << "process.process.Handle(): " << process.process.Pid();
       mojo::OutgoingInvitation::Send(
           std::move(invitation), process.process.Handle(),
           mojo_channel_->TakeLocalEndpoint(), process_error_callback_);
     } else {
+      LOG(INFO) << __FUNCTION__<< "2";
       DCHECK(mojo_named_channel_);
       mojo::OutgoingInvitation::Send(
           std::move(invitation), process.process.Handle(),
@@ -151,6 +174,22 @@ void ChildProcessLauncherHelper::PostLaunchOnLauncherThread(
     }
   }
 
+
+    if (!base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kEnableForking)) {
+      success_or_timeout_event_.Wait();
+      if (timeout_on_process_launch_) {
+      LOG(INFO) << "timeout_on_process_launch_: true here";
+      timeout_on_process_launch_ = false;
+      base::CommandLine::ForCurrentProcess()->AppendSwitch(switches::kEnableForking);
+      BrowserThread::PostTask(client_thread_id_,
+        FROM_HERE,
+        base::BindOnce(&ChildProcessLauncherHelper::StartLaunchOnClientThread,
+                       this));
+      return;
+      }
+    }
+    LOG(INFO) << "process.process.Handle() == kCastanetsProcessHandle: " << (process.process.Handle() == base::kCastanetsProcessHandle); 
+  LOG(INFO) <<"ChildProcessLauncherHelper::PostLaunchOnClientThread will be called";
   BrowserThread::PostTask(
       client_thread_id_, FROM_HERE,
       base::BindOnce(&ChildProcessLauncherHelper::PostLaunchOnClientThread,

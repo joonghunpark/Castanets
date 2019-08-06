@@ -198,6 +198,8 @@ class CONTENT_EXPORT ChildProcessLauncher {
   // previous  client.
   Client* ReplaceClientForTest(Client* client);
 
+  void OnTcpConnectionLaunched() { return helper_->OnTcpConnectionLaunched(); }
+
   // Sets the files that should be mapped when a new child process is created
   // for the service |service_name|.
   static void SetRegisteredFilesForService(

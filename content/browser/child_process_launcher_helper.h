@@ -12,6 +12,7 @@
 #include "base/optional.h"
 #include "base/process/kill.h"
 #include "base/process/process.h"
+#include "base/synchronization/waitable_event.h"
 #include "build/build_config.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/result_codes.h"
@@ -51,6 +52,7 @@ namespace content {
 
 class ChildProcessLauncher;
 class SandboxedProcessLauncherDelegate;
+class TimeoutMonitor;
 struct ChildProcessLauncherPriority;
 struct ChildProcessTerminationInfo;
 
@@ -181,6 +183,9 @@ class ChildProcessLauncherHelper :
 
   static void ResetRegisteredFilesForTesting();
 
+  void OnCastanetsRendererTimeout();
+  void OnTcpConnectionLaunched();
+
 #if defined(OS_ANDROID)
   void OnChildProcessStarted(JNIEnv* env,
                              const base::android::JavaParamRef<jobject>& obj,
@@ -225,6 +230,10 @@ class ChildProcessLauncherHelper :
   // returns a valid server endpoint from
   // |CreateNamedPlatformChannelOnClientThread()|.
   base::Optional<mojo::NamedPlatformChannel> mojo_named_channel_;
+
+  std::unique_ptr<TimeoutMonitor> relaunch_renderer_process_monitor_timeout_;
+  base::WaitableEvent success_or_timeout_event_;
+  bool timeout_on_process_launch_;
 
   bool terminate_on_shutdown_;
   mojo::OutgoingInvitation mojo_invitation_;

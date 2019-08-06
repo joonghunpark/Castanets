@@ -1314,13 +1314,15 @@ MojoResult Core::SendInvitation(
     MojoProcessErrorHandler error_handler,
     uintptr_t error_handler_context,
     const MojoSendInvitationOptions* options) {
+  LOG(INFO) << __FUNCTION__ << " 1";
   if (options && options->struct_size < sizeof(*options))
     return MOJO_RESULT_INVALID_ARGUMENT;
-
+LOG(INFO) << __FUNCTION__ << " 2";
   base::ProcessHandle target_process = base::kNullProcessHandle;
   if (process_handle) {
     if (process_handle->struct_size < sizeof(*process_handle))
       return MOJO_RESULT_INVALID_ARGUMENT;
+    LOG(INFO) << __FUNCTION__ << " 3";
 #if defined(OS_WIN)
     target_process = reinterpret_cast<base::ProcessHandle>(
         static_cast<uintptr_t>(process_handle->value));
@@ -1354,39 +1356,55 @@ MojoResult Core::SendInvitation(
           MOJO_INVITATION_TRANSPORT_TYPE_CHANNEL_SERVER) {
     return MOJO_RESULT_UNIMPLEMENTED;
   }
-
-  scoped_refptr<Dispatcher> dispatcher = GetDispatcher(invitation_handle);
+LOG(INFO) << __FUNCTION__ << " 4";
+  static MojoHandle temp_handle;
+  if (invitation_handle)
+    temp_handle = invitation_handle;
+  scoped_refptr<Dispatcher> dispatcher = GetDispatcher(temp_handle);
+  LOG(INFO) << "!invitation_handle" << !invitation_handle;
+  LOG(INFO) << "temp_handle: " << temp_handle;
+  LOG(INFO) << "!dispatcher: " << !dispatcher;
   if (!dispatcher || dispatcher->GetType() != Dispatcher::Type::INVITATION)
     return MOJO_RESULT_INVALID_ARGUMENT;
+LOG(INFO) << __FUNCTION__ << " 5";
+
   auto* invitation_dispatcher =
       static_cast<InvitationDispatcher*>(dispatcher.get());
 
   auto endpoint = PlatformHandle::FromMojoPlatformHandle(
       &transport_endpoint->platform_handles[0]);
+  LOG(INFO) << "&transport_endpoint->platform_handles[0]: " << static_cast<long>(transport_endpoint->platform_handles[0].value);
   if (!endpoint.is_valid())
     return MOJO_RESULT_INVALID_ARGUMENT;
+LOG(INFO) << __FUNCTION__ << " 6";
 
   ConnectionParams connection_params;
+  ConnectionParams clone_connection_params;
 #if defined(OS_WIN) || defined(OS_POSIX)
   if (transport_endpoint->type ==
       MOJO_INVITATION_TRANSPORT_TYPE_CHANNEL_SERVER) {
+    LOG(INFO) << "transport_endpoint->type == MOJO_INVITATION_TRANSPORT_TYPE_CHANNEL_SERVER";
     connection_params =
         ConnectionParams(PlatformChannelServerEndpoint(std::move(endpoint)));
   }
-#endif
+#endif 
+  LOG(INFO) << "connection_params.server_endpoint().is_valid(): " << connection_params.server_endpoint().is_valid();
   if (!connection_params.server_endpoint().is_valid()) {
     connection_params =
         ConnectionParams(PlatformChannelEndpoint(std::move(endpoint)));
   }
+  LOG(INFO) << "connection_params.endpoint().is_valid(): " << connection_params.endpoint().is_valid();
 
   // At this point everything else has been validated, so we can take ownership
   // of the dispatcher.
+  /*
   {
     base::AutoLock lock(handles_->GetLock());
     scoped_refptr<Dispatcher> removed_dispatcher;
     MojoResult result = handles_->GetAndRemoveDispatcher(invitation_handle,
                                                          &removed_dispatcher);
     if (result != MOJO_RESULT_OK) {
+      LOG(INFO) << "result != MOJO_RESULT_OK";
       // Release ownership of the endpoint platform handle, per the API
       // contract. The caller retains ownership on failure.
       connection_params.TakeEndpoint().TakePlatformHandle().release();
@@ -1395,13 +1413,19 @@ MojoResult Core::SendInvitation(
     }
     DCHECK_EQ(removed_dispatcher.get(), invitation_dispatcher);
   }
-
+  */
   std::vector<std::pair<std::string, ports::PortRef>> attached_ports;
   InvitationDispatcher::PortMapping attached_port_map =
       invitation_dispatcher->TakeAttachedPorts();
-  invitation_dispatcher->Close();
-  for (auto& entry : attached_port_map)
+
+  for (auto& entry : attached_port_map) {
+    LOG(INFO) << "entry.first: " << entry.first;
+    LOG(INFO) << "entry.second: " << entry.second.name();
+    invitation_dispatcher->AttachMessagePipe(entry.first, entry.second);
     attached_ports.emplace_back(entry.first, std::move(entry.second));
+    LOG(INFO) << "- entry.first: " << entry.first;
+    LOG(INFO) << "- entry.second: " << entry.second.name();
+  }
 
   bool is_isolated =
       options && (options->flags & MOJO_SEND_INVITATION_FLAG_ISOLATED);
@@ -1453,6 +1477,7 @@ MojoResult Core::AcceptInvitation(
 
   auto endpoint = PlatformHandle::FromMojoPlatformHandle(
       &transport_endpoint->platform_handles[0]);
+  LOG(INFO) << "&transport_endpoint->platform_handles[0]: " << static_cast<long>(transport_endpoint->platform_handles[0].value);
   if (!endpoint.is_valid()) {
     Close(*invitation_handle);
     *invitation_handle = MOJO_HANDLE_INVALID;
@@ -1465,11 +1490,14 @@ MojoResult Core::AcceptInvitation(
       MOJO_INVITATION_TRANSPORT_TYPE_CHANNEL_SERVER) {
     connection_params =
         ConnectionParams(PlatformChannelServerEndpoint(std::move(endpoint)));
+
   }
 #endif
+  LOG(INFO) << "connection_params.server_endpoint().is_valid(): " << connection_params.server_endpoint().is_valid();
   if (!connection_params.server_endpoint().is_valid()) {
     connection_params =
         ConnectionParams(PlatformChannelEndpoint(std::move(endpoint)));
+    LOG(INFO) << "connection_params.endpoint().is_valid(): " << connection_params.endpoint().is_valid();
   }
 
   bool is_isolated =

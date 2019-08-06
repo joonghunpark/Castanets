@@ -46,6 +46,8 @@ Channel::MessagePtr WaitForBrokerMessage(
   }
 
   bool error = false;
+  LOG(INFO) << "read_result: " << read_result;
+  LOG(INFO) << "message->data_num_bytes(): " << message->data_num_bytes();
   if (read_result < 0) {
     PLOG(ERROR) << "Recvmsg error";
     error = true;
@@ -93,6 +95,7 @@ BrokerCastanets::BrokerCastanets(PlatformHandle handle,
 
   // Wait for the first message, which should contain a handle.
   std::vector<PlatformHandle> incoming_platform_handles;
+  LOG(INFO) << "WaitForBrokerMessage(fd, BrokerMessageType::INIT)";
   Channel::MessagePtr message =
       WaitForBrokerMessage(fd, BrokerMessageType::INIT, 1, sizeof(InitData),
                            &incoming_platform_handles);
@@ -359,6 +362,7 @@ bool BrokerCastanets::SendChannel(PlatformHandle handle) {
     return false;
 
   message->SetHandles(std::move(handles));
+  LOG(INFO) << "channel_->Write(std::move(message));";
   channel_->Write(std::move(message));
   return true;
 }

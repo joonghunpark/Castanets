@@ -496,7 +496,7 @@ void ChildThreadImpl::Init(const Options& options) {
     std::string service_request_token =
         base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
             service_manager::switches::kServiceRequestChannelToken);
-
+        LOG(INFO) << "service_request_token: " << service_request_token;
     if (service_request_token.empty()) {
       if (base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
           switches::kProcessType) == switches::kUtilityProcess)
@@ -512,9 +512,12 @@ void ChildThreadImpl::Init(const Options& options) {
         switches::kRendererClientId)) {
       base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
           switches::kRendererClientId, std::to_string(1)); // workaround
+    LOG(INFO) << "invitation = InitializeMojoIPCChannelTCP();";
       invitation = InitializeMojoIPCChannelTCP();
-    } else
+    } else {
+    LOG(INFO) << "invitation = InitializeMojoIPCChannel();";
       invitation = InitializeMojoIPCChannel();
+    }
 #else
    base::Optional<mojo::IncomingInvitation> invitation =
        InitializeMojoIPCChannel();

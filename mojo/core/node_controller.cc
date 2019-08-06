@@ -182,6 +182,9 @@ void NodeController::SendBrokerClientInvitation(
     ConnectionParams connection_params,
     const std::vector<std::pair<std::string, ports::PortRef>>& attached_ports,
     const ProcessErrorCallback& process_error_callback) {
+  LOG(INFO) << __FUNCTION__;
+  LOG(INFO) << "connection_params.server_endpoint().is_valid(): " << connection_params.server_endpoint().is_valid();
+  LOG(INFO) << "connection_params.endpoint().is_valid(): " << connection_params.endpoint().is_valid();
   // Generate the temporary remote node name here so that it can be associated
   // with the ports "attached" to this invitation.
   ports::NodeName temporary_node_name;
@@ -364,17 +367,21 @@ void NodeController::SendBrokerClientInvitationOnIOThread(
 #if defined(CASTANETS)
   bool channel_ok = false;
   ConnectionParams node_connection_params;
+  LOG(INFO) << "connection_params.endpoint().is_valid(): " << connection_params.endpoint().is_valid();
   if (connection_params.endpoint().is_valid()) {
+    LOG(INFO) << "unix domain soocket";
     // Unix Domain Socket
     PlatformChannel node_channel;
     node_connection_params = ConnectionParams(node_channel.TakeLocalEndpoint());
     // BrokerHost owns itself.
+    LOG(INFO) << "target_process.get(): " << target_process.get();
     BrokerHost* broker_host =
         new BrokerHost(target_process.get(), std::move(connection_params),
                        process_error_callback);
     channel_ok = broker_host->SendChannel(
         node_channel.TakeRemoteEndpoint().TakePlatformHandle());
   } else {
+    LOG(INFO) << "tcp soocket";
     // TCP Server Socket
     uint16_t port = 0;
     node_connection_params =

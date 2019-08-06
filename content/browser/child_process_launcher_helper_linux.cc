@@ -28,8 +28,11 @@ base::Optional<mojo::NamedPlatformChannel>
 ChildProcessLauncherHelper::CreateNamedPlatformChannelOnClientThread() {
 #if defined(CASTANETS)
   DCHECK_CURRENTLY_ON(client_thread_id_);
-  if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kEnableForking))
+  LOG(INFO) << __FUNCTION__;
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kEnableForking)) {
+    LOG(INFO) <<"return base::nullopt;";
     return base::nullopt;
+  }
 
   mojo::NamedPlatformChannel::Options options;
   if (GetProcessType() == switches::kRendererProcess)
@@ -117,13 +120,14 @@ ChildProcessLauncherHelper::LaunchProcessOnLauncherThread(
 
 #if defined(CASTANETS)
   if (!base::CommandLine::ForCurrentProcess()->HasSwitch(switches::kEnableForking)) {
+    LOG(INFO) << "Castanets base::LaunchProcess will be called";
     Process castanets_process;
     castanets_process.process = base::Process(base::kCastanetsProcessHandle);
     *launch_result = LAUNCH_RESULT_SUCCESS;
     return castanets_process;
   }
 #endif
-
+  LOG(INFO) << "base::LaunchProcess will be called";
   Process process;
   process.process = base::LaunchProcess(*command_line(), options);
   *launch_result = process.process.IsValid() ? LAUNCH_RESULT_SUCCESS

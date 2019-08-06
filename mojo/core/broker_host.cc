@@ -91,6 +91,7 @@ bool BrokerHost::SendChannel(PlatformHandle handle) {
     return false;
 
   message->SetHandles(std::move(handles));
+  LOG(INFO) << "channel_->Write(std::move(message));";
   channel_->Write(std::move(message));
   return true;
 }

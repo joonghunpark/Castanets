@@ -12,6 +12,7 @@
 
 #include <stdint.h>
 
+#include "base/callback.h"
 #include "mojo/public/c/system/macros.h"
 #include "mojo/public/c/system/platform_handle.h"
 #include "mojo/public/c/system/system_export.h"
@@ -410,7 +411,13 @@ MOJO_SYSTEM_EXPORT MojoResult MojoSendInvitation(
     const struct MojoInvitationTransportEndpoint* transport_endpoint,
     MojoProcessErrorHandler error_handler,
     uintptr_t error_handler_context,
-    const struct MojoSendInvitationOptions* options);
+    const struct MojoSendInvitationOptions* options,
+    base::RepeatingCallback<void()> tcp_success_callback = {});
+
+MOJO_SYSTEM_EXPORT MojoResult MojoRetryInvitation(
+    const struct MojoPlatformProcessHandle* old_process_handle,
+    const struct MojoPlatformProcessHandle* process_handle,
+    const struct MojoInvitationTransportEndpoint* transport_endpoint);
 
 // Accepts an invitation from a transport endpoint to complete IPC bootstrapping
 // between the calling process and whoever sent the invitation from the other

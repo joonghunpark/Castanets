@@ -467,6 +467,10 @@ NodeChannel::~NodeChannel() {
   ShutDown();
 }
 
+void NodeChannel::SetSocket(ConnectionParams connection_params) {
+  channel_->SetSocket(std::move(connection_params));
+}
+
 void NodeChannel::OnChannelMessage(const void* payload,
                                    size_t payload_size,
                                    std::vector<PlatformHandle> handles) {

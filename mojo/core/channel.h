@@ -280,6 +280,9 @@ class MOJO_SYSTEM_IMPL_EXPORT Channel
   }
   const ScopedProcessHandle& remote_process() const { return remote_process_; }
 
+  virtual void SetSocket(ConnectionParams connection_params) {}
+  virtual void ClearOutgoingMessages() {}
+
   // Begin processing I/O events. Delegate methods must only be invoked after
   // this call.
   virtual void Start() = 0;

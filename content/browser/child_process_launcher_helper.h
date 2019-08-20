@@ -12,6 +12,7 @@
 #include "base/optional.h"
 #include "base/process/kill.h"
 #include "base/process/process.h"
+#include "base/synchronization/waitable_event.h"
 #include "build/build_config.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/result_codes.h"
@@ -51,6 +52,7 @@ namespace content {
 
 class ChildProcessLauncher;
 class SandboxedProcessLauncherDelegate;
+class TimeoutMonitor;
 struct ChildProcessLauncherPriority;
 struct ChildProcessTerminationInfo;
 
@@ -171,6 +173,13 @@ class ChildProcessLauncherHelper :
   static void ForceNormalProcessTerminationAsync(
       ChildProcessLauncherHelper::Process process);
 
+  void OnCastanetsRendererTimeout();
+  void OnCastanetsRendererLaunchedViaTcp();
+
+  ChildProcessLauncherHelper::Process RetrySendOutgoingInvitation(
+      base::ProcessHandle old_process,
+      const mojo::ProcessErrorCallback& error_callback);
+
   void SetProcessPriorityOnLauncherThread(
       base::Process process,
       const ChildProcessLauncherPriority& priority);
@@ -226,9 +235,14 @@ class ChildProcessLauncherHelper :
   // |CreateNamedPlatformChannelOnClientThread()|.
   base::Optional<mojo::NamedPlatformChannel> mojo_named_channel_;
 
+  std::unique_ptr<TimeoutMonitor> relaunch_renderer_process_monitor_timeout_;
+  base::WaitableEvent success_or_timeout_event_;
+
+  bool tcp_connected_;
   bool terminate_on_shutdown_;
   mojo::OutgoingInvitation mojo_invitation_;
   const mojo::ProcessErrorCallback process_error_callback_;
+  base::RepeatingCallback<void()> tcp_success_callback_;
 
 #if defined(OS_MACOSX)
   std::unique_ptr<sandbox::SeatbeltExecClient> seatbelt_exec_client_;

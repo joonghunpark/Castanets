@@ -59,7 +59,8 @@ void SendInvitation(ScopedInvitationHandle invitation,
                     MojoInvitationTransportType transport_type,
                     MojoSendInvitationFlags flags,
                     const ProcessErrorCallback& error_callback,
-                    base::StringPiece isolated_connection_name) {
+                    base::StringPiece isolated_connection_name,
+                    base::RepeatingCallback<void()> tcp_success_callback = {}) {
   MojoPlatformProcessHandle process_handle;
   ProcessHandleToMojoProcessHandle(target_process, &process_handle);
 
@@ -89,12 +90,29 @@ void SendInvitation(ScopedInvitationHandle invitation,
     options.isolated_connection_name_length =
         static_cast<uint32_t>(isolated_connection_name.size());
   }
-  MojoResult result =
-      MojoSendInvitation(invitation.get().value(), &process_handle, &endpoint,
-                         error_handler, error_handler_context, &options);
+  MojoResult result = MojoSendInvitation(
+      invitation.get().value(), &process_handle, &endpoint, error_handler,
+      error_handler_context, &options, tcp_success_callback);
   // If successful, the invitation handle is already closed for us.
   if (result == MOJO_RESULT_OK)
     ignore_result(invitation.release());
+}
+
+void RetryInvitation(base::ProcessHandle old_process,
+                     base::ProcessHandle process,
+                     PlatformHandle endpoint_handle,
+                     MojoInvitationTransportType transport_type) {
+  MojoPlatformProcessHandle old_process_handle, process_handle;
+  ProcessHandleToMojoProcessHandle(old_process, &old_process_handle);
+  ProcessHandleToMojoProcessHandle(process, &process_handle);
+
+  MojoPlatformHandle platform_handle;
+  MojoInvitationTransportEndpoint endpoint;
+  PlatformHandleToTransportEndpoint(std::move(endpoint_handle),
+                                    &platform_handle, &endpoint);
+  endpoint.type = transport_type;
+
+  MojoRetryInvitation(&old_process_handle, &process_handle, &endpoint);
 }
 
 }  // namespace
@@ -160,14 +178,25 @@ void OutgoingInvitation::Send(OutgoingInvitation invitation,
 }
 
 // static
-void OutgoingInvitation::Send(OutgoingInvitation invitation,
-                              base::ProcessHandle target_process,
-                              PlatformChannelServerEndpoint server_endpoint,
-                              const ProcessErrorCallback& error_callback) {
+void OutgoingInvitation::Send(
+    OutgoingInvitation invitation,
+    base::ProcessHandle target_process,
+    PlatformChannelServerEndpoint server_endpoint,
+    const ProcessErrorCallback& error_callback,
+    base::RepeatingCallback<void()> tcp_success_callback) {
   SendInvitation(std::move(invitation.handle_), target_process,
                  server_endpoint.TakePlatformHandle(),
                  MOJO_INVITATION_TRANSPORT_TYPE_CHANNEL_SERVER,
-                 MOJO_SEND_INVITATION_FLAG_NONE, error_callback, "");
+                 MOJO_SEND_INVITATION_FLAG_NONE, error_callback, "",
+                 tcp_success_callback);
+}
+
+// static
+void OutgoingInvitation::Retry(base::ProcessHandle old_process,
+                               base::ProcessHandle process,
+                               PlatformChannelEndpoint channel_endpoint) {
+  RetryInvitation(old_process, process, channel_endpoint.TakePlatformHandle(),
+                  MOJO_INVITATION_TRANSPORT_TYPE_CHANNEL);
 }
 
 // static

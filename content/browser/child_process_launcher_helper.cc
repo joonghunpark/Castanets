@@ -4,6 +4,7 @@
 
 #include "content/browser/child_process_launcher_helper.h"
 
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
@@ -13,6 +14,7 @@
 #include "base/task_scheduler/single_thread_task_runner_thread_mode.h"
 #include "base/task_scheduler/task_traits.h"
 #include "content/browser/child_process_launcher.h"
+#include "content/browser/renderer_host/input/timeout_monitor.h"
 #include "content/public/browser/child_process_launcher_utils.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/sandboxed_process_launcher_delegate.h"
@@ -21,6 +23,8 @@
 #if defined(OS_ANDROID)
 #include "content/browser/android/launcher_thread.h"
 #endif
+
+int kTcpConnectionTimeout = 3;
 
 namespace content {
 namespace internal {
@@ -76,11 +80,31 @@ ChildProcessLauncherHelper::ChildProcessLauncherHelper(
       command_line_(std::move(command_line)),
       delegate_(std::move(delegate)),
       child_process_launcher_(child_process_launcher),
+      tcp_connected_(false),
       terminate_on_shutdown_(terminate_on_shutdown),
       mojo_invitation_(std::move(mojo_invitation)),
-      process_error_callback_(process_error_callback) {}
+      process_error_callback_(process_error_callback) {
+  tcp_success_callback_ = base::BindRepeating(
+      &ChildProcessLauncherHelper::OnCastanetsRendererLaunchedViaTcp,
+      base::Unretained(this));
+  relaunch_renderer_process_monitor_timeout_.reset(new TimeoutMonitor(
+      base::Bind(&ChildProcessLauncherHelper::OnCastanetsRendererTimeout,
+                 base::Unretained(this))));
+  relaunch_renderer_process_monitor_timeout_->Start(
+      base::TimeDelta::FromSeconds(kTcpConnectionTimeout));
+}
 
 ChildProcessLauncherHelper::~ChildProcessLauncherHelper() = default;
+
+void ChildProcessLauncherHelper::OnCastanetsRendererTimeout() {
+  success_or_timeout_event_.Signal();
+}
+
+void ChildProcessLauncherHelper::OnCastanetsRendererLaunchedViaTcp() {
+  tcp_connected_ = true;
+  success_or_timeout_event_.Signal();
+  relaunch_renderer_process_monitor_timeout_->Stop();
+}
 
 void ChildProcessLauncherHelper::StartLaunchOnClientThread() {
   DCHECK_CURRENTLY_ON(client_thread_id_);
@@ -122,6 +146,40 @@ void ChildProcessLauncherHelper::LaunchOnLauncherThread() {
   }
 }
 
+ChildProcessLauncherHelper::Process
+ChildProcessLauncherHelper::RetrySendOutgoingInvitation(
+    base::ProcessHandle old_process,
+    const mojo::ProcessErrorCallback& error_callback) {
+  command_line_->AppendSwitchASCII(switches::kRendererClientId,
+                                   std::to_string(child_process_id_));
+
+  DCHECK(CurrentlyOnProcessLauncherTaskRunner());
+
+  mojo_named_channel_.reset();
+  mojo_channel_.emplace();
+
+  begin_launch_time_ = base::TimeTicks::Now();
+
+  std::unique_ptr<FileMappedForLaunch> files_to_register = GetFilesToMap();
+
+  int launch_result = LAUNCH_RESULT_FAILURE;
+  base::LaunchOptions options;
+
+  Process process;
+  if (BeforeLaunchOnLauncherThread(*files_to_register, &options)) {
+    process.process = base::LaunchProcess(*command_line(), options);
+    launch_result = process.process.IsValid() ? LAUNCH_RESULT_SUCCESS
+                                              : LAUNCH_RESULT_FAILURE;
+
+    AfterLaunchOnLauncherThread(process, options);
+  }
+
+  mojo::OutgoingInvitation::Retry(old_process, process.process.Handle(),
+                                  mojo_channel_->TakeLocalEndpoint());
+
+  return process;
+}
+
 void ChildProcessLauncherHelper::PostLaunchOnLauncherThread(
     ChildProcessLauncherHelper::Process process,
     int launch_result) {
@@ -153,8 +211,18 @@ void ChildProcessLauncherHelper::PostLaunchOnLauncherThread(
       DCHECK(mojo_named_channel_);
       mojo::OutgoingInvitation::Send(
           std::move(invitation), process.process.Handle(),
-          mojo_named_channel_->TakeServerEndpoint(), process_error_callback_);
+          mojo_named_channel_->TakeServerEndpoint(), process_error_callback_,
+          tcp_success_callback_);
     }
+  }
+
+  if (!base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kEnableForking)) {
+    // If --enable-forking switch exists, we don't have to wait.
+    success_or_timeout_event_.Wait();
+    if (!tcp_connected_)
+      process = RetrySendOutgoingInvitation(process.process.Handle(),
+                                            process_error_callback_);
   }
 
   BrowserThread::PostTask(

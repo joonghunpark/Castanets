@@ -334,11 +334,16 @@ class MOJO_SYSTEM_IMPL_EXPORT Core {
       const MojoInvitationTransportEndpoint* transport_endpoint,
       MojoProcessErrorHandler error_handler,
       uintptr_t error_handler_context,
-      const MojoSendInvitationOptions* options);
+      const MojoSendInvitationOptions* options,
+      base::RepeatingCallback<void()> tcp_success_callback = {});
   MojoResult AcceptInvitation(
       const MojoInvitationTransportEndpoint* transport_endpoint,
       const MojoAcceptInvitationOptions* options,
       MojoHandle* invitation_handle);
+  MojoResult RetryInvitation(
+      const struct MojoPlatformProcessHandle* old_process_handle,
+      const struct MojoPlatformProcessHandle* process_handle,
+      const struct MojoInvitationTransportEndpoint* transport_endpoint);
 
   // Quota API.
   MojoResult SetQuota(MojoHandle handle,

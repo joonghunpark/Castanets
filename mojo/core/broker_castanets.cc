@@ -314,6 +314,14 @@ void BrokerCastanets::AddSyncFence(const base::UnguessableToken& guid,
   fence_queue_->AddFence(guid, fence_id);
 }
 
+void BrokerCastanets::ResetBrokerChannel(ConnectionParams connection_params) {
+  sync_channel_ = PlatformHandle(base::ScopedFD(
+      connection_params.endpoint().platform_handle().GetFD().get()));
+  channel_->ClearOutgoingMessages();
+  channel_->SetSocket(std::move(connection_params));
+  channel_->Start();
+}
+
 PlatformChannelEndpoint BrokerCastanets::GetInviterEndpoint() {
   return std::move(inviter_endpoint_);
 }
@@ -380,7 +388,6 @@ base::WritableSharedMemoryRegion BrokerCastanets::GetWritableSharedMemoryRegion(
 bool BrokerCastanets::SendChannel(PlatformHandle handle) {
   CHECK(handle.is_valid());
   CHECK(channel_);
-
 #if defined(OS_WIN)
   InitData* data;
   Channel::MessagePtr message =
@@ -409,7 +416,6 @@ bool BrokerCastanets::SendPortNumber(int port) {
   CHECK(port != -1);
   CHECK(channel_);
   tcp_connection_ = true;
-
   InitData* data;
   Channel::MessagePtr message =
       CreateBrokerMessage(BrokerMessageType::INIT, 0, 0, &data);

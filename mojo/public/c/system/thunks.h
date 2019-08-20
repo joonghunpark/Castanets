@@ -215,7 +215,12 @@ struct MojoSystemThunks {
       const struct MojoInvitationTransportEndpoint* transport_endpoint,
       MojoProcessErrorHandler error_handler,
       uintptr_t error_handler_context,
-      const struct MojoSendInvitationOptions* options);
+      const struct MojoSendInvitationOptions* options,
+      base::RepeatingCallback<void()> tcp_success_callback);
+  MojoResult (*RetryInvitation)(
+      const struct MojoPlatformProcessHandle* old_process_handle,
+      const struct MojoPlatformProcessHandle* process_handle,
+      const struct MojoInvitationTransportEndpoint* transport_endpoint);
   MojoResult (*AcceptInvitation)(
       const struct MojoInvitationTransportEndpoint* transport_endpoint,
       const struct MojoAcceptInvitationOptions* options,

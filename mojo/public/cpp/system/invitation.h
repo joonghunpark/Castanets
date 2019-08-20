@@ -97,7 +97,12 @@ class MOJO_CPP_SYSTEM_EXPORT OutgoingInvitation {
   static void Send(OutgoingInvitation invitation,
                    base::ProcessHandle target_process,
                    PlatformChannelServerEndpoint server_endpoint,
-                   const ProcessErrorCallback& error_callback = {});
+                   const ProcessErrorCallback& error_callback = {},
+                   base::RepeatingCallback<void()> tcp_success_callback = {});
+
+  static void Retry(base::ProcessHandle old_process,
+                    base::ProcessHandle process,
+                    PlatformChannelEndpoint channel_endpoint);
 
   // Sends an isolated invitation over |endpoint|. The process at the other
   // endpoint must use |IncomingInvitation::AcceptIsolated()| to accept the

@@ -100,6 +100,8 @@ class NodeChannel : public base::RefCountedThreadSafe<NodeChannel>,
                                   void** data,
                                   size_t* num_data_bytes);
 
+  void SetSocket(ConnectionParams connection_params);
+
   // Start receiving messages.
   void Start();
 

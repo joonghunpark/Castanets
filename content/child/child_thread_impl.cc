@@ -513,8 +513,9 @@ void ChildThreadImpl::Init(const Options& options) {
       base::CommandLine::ForCurrentProcess()->AppendSwitchASCII(
           switches::kRendererClientId, std::to_string(1)); // workaround
       invitation = InitializeMojoIPCChannelTCP();
-    } else
+    } else {
       invitation = InitializeMojoIPCChannel();
+    }
 #else
    base::Optional<mojo::IncomingInvitation> invitation =
        InitializeMojoIPCChannel();

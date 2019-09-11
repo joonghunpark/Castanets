@@ -335,7 +335,7 @@ class MOJO_SYSTEM_IMPL_EXPORT Core {
       MojoProcessErrorHandler error_handler,
       uintptr_t error_handler_context,
       const MojoSendInvitationOptions* options,
-      base::RepeatingCallback<void()> tcp_success_callback = {});
+      base::OnceCallback<void()> tcp_success_callback = {});
   MojoResult AcceptInvitation(
       const MojoInvitationTransportEndpoint* transport_endpoint,
       const MojoAcceptInvitationOptions* options,

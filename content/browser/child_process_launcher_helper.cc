@@ -24,7 +24,7 @@
 #include "content/browser/android/launcher_thread.h"
 #endif
 
-int kTcpConnectionTimeout = 3;
+int kTcpConnectionTimeout = 10;
 
 namespace content {
 namespace internal {
@@ -84,9 +84,6 @@ ChildProcessLauncherHelper::ChildProcessLauncherHelper(
       terminate_on_shutdown_(terminate_on_shutdown),
       mojo_invitation_(std::move(mojo_invitation)),
       process_error_callback_(process_error_callback) {
-  tcp_success_callback_ = base::BindRepeating(
-      &ChildProcessLauncherHelper::OnCastanetsRendererLaunchedViaTcp,
-      base::Unretained(this));
   relaunch_renderer_process_monitor_timeout_.reset(new TimeoutMonitor(
       base::Bind(&ChildProcessLauncherHelper::OnCastanetsRendererTimeout,
                  base::Unretained(this))));
@@ -183,6 +180,7 @@ ChildProcessLauncherHelper::RetrySendOutgoingInvitation(
 void ChildProcessLauncherHelper::PostLaunchOnLauncherThread(
     ChildProcessLauncherHelper::Process process,
     int launch_result) {
+  LOG(INFO) << __FUNCTION__;
 #if defined(CASTANETS)
   // If mojo_named_channel_ is valid, we are trying to launch process
   // in Castanets mode, mojo_channel_ is no longer needed.
@@ -208,11 +206,15 @@ void ChildProcessLauncherHelper::PostLaunchOnLauncherThread(
           std::move(invitation), process.process.Handle(),
           mojo_channel_->TakeLocalEndpoint(), process_error_callback_);
     } else {
+      base::OnceCallback<void()> tcp_success_callback = base::BindOnce(
+      &ChildProcessLauncherHelper::OnCastanetsRendererLaunchedViaTcp,
+      base::Unretained(this));
       DCHECK(mojo_named_channel_);
+      LOG(INFO) << "PostLaunchOnLauncherThread - mojo::OutgoingInvitation::Send";
       mojo::OutgoingInvitation::Send(
           std::move(invitation), process.process.Handle(),
           mojo_named_channel_->TakeServerEndpoint(), process_error_callback_,
-          tcp_success_callback_);
+          std::move(tcp_success_callback));
     }
   }
 

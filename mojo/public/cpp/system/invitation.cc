@@ -60,7 +60,7 @@ void SendInvitation(ScopedInvitationHandle invitation,
                     MojoSendInvitationFlags flags,
                     const ProcessErrorCallback& error_callback,
                     base::StringPiece isolated_connection_name,
-                    base::RepeatingCallback<void()> tcp_success_callback = {}) {
+                    base::OnceCallback<void()> tcp_success_callback = {}) {
   MojoPlatformProcessHandle process_handle;
   ProcessHandleToMojoProcessHandle(target_process, &process_handle);
 
@@ -92,7 +92,7 @@ void SendInvitation(ScopedInvitationHandle invitation,
   }
   MojoResult result = MojoSendInvitation(
       invitation.get().value(), &process_handle, &endpoint, error_handler,
-      error_handler_context, &options, tcp_success_callback);
+      error_handler_context, &options, std::move(tcp_success_callback));
   // If successful, the invitation handle is already closed for us.
   if (result == MOJO_RESULT_OK)
     ignore_result(invitation.release());
@@ -183,12 +183,12 @@ void OutgoingInvitation::Send(
     base::ProcessHandle target_process,
     PlatformChannelServerEndpoint server_endpoint,
     const ProcessErrorCallback& error_callback,
-    base::RepeatingCallback<void()> tcp_success_callback) {
+    base::OnceCallback<void()> tcp_success_callback) {
   SendInvitation(std::move(invitation.handle_), target_process,
                  server_endpoint.TakePlatformHandle(),
                  MOJO_INVITATION_TRANSPORT_TYPE_CHANNEL_SERVER,
                  MOJO_SEND_INVITATION_FLAG_NONE, error_callback, "",
-                 tcp_success_callback);
+                 std::move(tcp_success_callback));
 }
 
 // static

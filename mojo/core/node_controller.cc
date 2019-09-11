@@ -190,7 +190,7 @@ void NodeController::SendBrokerClientInvitation(
     ConnectionParams connection_params,
     const std::vector<std::pair<std::string, ports::PortRef>>& attached_ports,
     const ProcessErrorCallback& process_error_callback,
-    base::RepeatingCallback<void()> tcp_success_callback) {
+    base::OnceCallback<void()> tcp_success_callback) {
   // Generate the temporary remote node name here so that it can be associated
   // with the ports "attached" to this invitation.
   ports::NodeName temporary_node_name;
@@ -968,7 +968,9 @@ void NodeController::OnAcceptInvitation(const ports::NodeName& from_node,
                                         const ports::NodeName& token,
                                         const ports::NodeName& invitee_name) {
   DCHECK(io_task_runner_->RunsTasksInCurrentSequence());
-  tcp_success_callback_.Run();
+  LOG(INFO) << "tcp_success_callback_.is_null(): " << tcp_success_callback_.is_null();
+  if (tcp_success_callback_)
+    std::move(tcp_success_callback_).Run();
   auto it = pending_invitations_.find(from_node);
   if (it == pending_invitations_.end() || token != from_node) {
     DLOG(ERROR) << "Received unexpected AcceptInvitation message from "

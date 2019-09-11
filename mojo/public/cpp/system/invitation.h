@@ -98,7 +98,7 @@ class MOJO_CPP_SYSTEM_EXPORT OutgoingInvitation {
                    base::ProcessHandle target_process,
                    PlatformChannelServerEndpoint server_endpoint,
                    const ProcessErrorCallback& error_callback = {},
-                   base::RepeatingCallback<void()> tcp_success_callback = {});
+                   base::OnceCallback<void()> tcp_success_callback = {});
 
   static void Retry(base::ProcessHandle old_process,
                     base::ProcessHandle process,

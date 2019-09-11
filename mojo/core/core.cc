@@ -1311,7 +1311,7 @@ MojoResult Core::SendInvitation(
     MojoProcessErrorHandler error_handler,
     uintptr_t error_handler_context,
     const MojoSendInvitationOptions* options,
-    base::RepeatingCallback<void()> tcp_success_callback) {
+    base::OnceCallback<void()> tcp_success_callback) {
   if (options && options->struct_size < sizeof(*options))
     return MOJO_RESULT_INVALID_ARGUMENT;
 
@@ -1415,7 +1415,7 @@ MojoResult Core::SendInvitation(
   } else {
     GetNodeController()->SendBrokerClientInvitation(
         target_process, std::move(connection_params), attached_ports,
-        process_error_callback, tcp_success_callback);
+        process_error_callback, std::move(tcp_success_callback));
   }
 
   return MOJO_RESULT_OK;

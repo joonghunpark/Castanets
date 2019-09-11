@@ -455,7 +455,7 @@ MojoResult MojoSendInvitation(
     MojoProcessErrorHandler error_handler,
     uintptr_t error_handler_context,
     const MojoSendInvitationOptions* options,
-    base::RepeatingCallback<void()> tcp_success_callback) {
+    base::OnceCallback<void()> tcp_success_callback) {
   return INVOKE_THUNK(SendInvitation, invitation_handle, process_handle,
                       transport_endpoint, error_handler, error_handler_context,
                       options, std::move(tcp_success_callback));

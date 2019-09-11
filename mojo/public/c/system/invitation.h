@@ -412,7 +412,7 @@ MOJO_SYSTEM_EXPORT MojoResult MojoSendInvitation(
     MojoProcessErrorHandler error_handler,
     uintptr_t error_handler_context,
     const struct MojoSendInvitationOptions* options,
-    base::RepeatingCallback<void()> tcp_success_callback = {});
+    base::OnceCallback<void()> tcp_success_callback = {});
 
 MOJO_SYSTEM_EXPORT MojoResult MojoRetryInvitation(
     const struct MojoPlatformProcessHandle* old_process_handle,

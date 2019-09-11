@@ -216,7 +216,7 @@ struct MojoSystemThunks {
       MojoProcessErrorHandler error_handler,
       uintptr_t error_handler_context,
       const struct MojoSendInvitationOptions* options,
-      base::RepeatingCallback<void()> tcp_success_callback);
+      base::OnceCallback<void()> tcp_success_callback);
   MojoResult (*RetryInvitation)(
       const struct MojoPlatformProcessHandle* old_process_handle,
       const struct MojoPlatformProcessHandle* process_handle,

@@ -268,6 +268,10 @@
 #define IntToStringType base::IntToString
 #endif
 
+#if defined(CASTANETS)
+#include "third_party/wrt/ewk/efl_integration/common/content_switches_efl.h"
+#endif
+
 namespace content {
 
 using CheckOriginLockResult =
@@ -2905,6 +2909,9 @@ void RenderProcessHostImpl::PropagateBrowserCommandLineToRenderer(
     switches::kSkiaFontCacheLimitMb,
     switches::kSkiaResourceCacheLimitMb,
     switches::kTestType,
+#if defined(CASTANETS)
+    switches::kTizenAppId,
+#endif
     switches::kTouchEventFeatureDetection,
     switches::kTouchTextSelectionStrategy,
     switches::kTraceToConsole,

@@ -112,6 +112,8 @@ static_library("renderer") {
     "worker_content_settings_client.h",
   ]
 
+  include_dirs = [ "//third_party/wrt/ewk/efl_integration" ]
+
   defines = []
 
   deps = [
@@ -171,6 +173,13 @@ static_library("renderer") {
     "//ui/surface",
     "//v8:v8",
   ]
+
+  if (enable_castanets) {
+    deps += [
+      "//third_party/wrt:wrt_lib",
+      "//third_party/wrt/ewk/efl_integration:chromium-ewk",
+    ]
+  }
 
   data_deps = [
     "//tools/v8_context_snapshot",

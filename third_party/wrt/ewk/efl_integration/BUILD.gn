@@ -1,0 +1,28 @@
+static_library("chromium-ewk") {
+  deps = [
+    "//ipc"
+  ]
+
+  configs += []
+
+  include_dirs = [
+    ".",
+    "//third_party/wrt/ewk/efl_integration/public"
+  ]
+
+  cflags = [ "-w" ]
+
+  sources = [
+    "ipc_message_start_ewk.h",
+    "common/content_switches_efl.cc",
+    "common/content_switches_efl.h",
+    "common/message_generator_ewk.cc",
+    "common/message_generator_ewk.h",
+    "common/render_messages_ewk.h",
+    "private/ewk_wrt_private.cc",
+    "private/ewk_wrt_private.h",
+    "public/ewk_export.h",
+    "public/ewk_ipc_message.cc",
+    "public/ewk_ipc_message_internal.h",
+  ]
+}

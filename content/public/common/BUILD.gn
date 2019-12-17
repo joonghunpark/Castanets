@@ -259,6 +259,9 @@ jumbo_source_set("common_sources") {
     "//ui/surface",
     "//url/ipc:url_ipc",
   ]
+  if (enable_castanets) {
+    public_deps += [ "//third_party/wrt/ewk/efl_integration:chromium-ewk" ]
+  }
   deps = [
     ":content_descriptor_keys",
 

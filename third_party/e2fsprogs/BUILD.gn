@@ -1,0 +1,27 @@
+uuid_sources = [
+    "lib/uuid/clear.c",
+    "lib/uuid/compare.c",
+    "lib/uuid/copy.c",
+    "lib/uuid/gen_uuid.c",
+    "lib/uuid/isnull.c",
+    "lib/uuid/pack.c",
+    "lib/uuid/parse.c",
+    "lib/uuid/unpack.c",
+    "lib/uuid/unparse.c",
+    "lib/uuid/uuid_time.c",
+]
+
+static_library("uuid_lib") {
+  deps = []
+
+  configs += []
+
+  include_dirs = [ "//third_party/e2fsprogs/lib" ]
+
+  cflags = [ "-w" ]
+
+  ldflags = []
+
+  sources = uuid_sources
+}
+
